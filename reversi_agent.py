@@ -127,7 +127,6 @@ class ReversiAgent(abc.ABC):
         raise NotImplementedError('You will have to implement this.')
 
 
-
 class EvaluateAgent(ReversiAgent):
     def __init__(self, color):
         super().__init__(color)
@@ -155,7 +154,7 @@ class EvaluateAgent(ReversiAgent):
         utility = self.Utility(board)
         if 0 < depth and utility > 20:
             return utility
-        elif depth > 3 or actions.size==0:
+        elif depth > 3 or actions.size == 0:
             return utility
         v = float("-inf")
         for a in actions:
@@ -177,7 +176,7 @@ class EvaluateAgent(ReversiAgent):
         utility = self.Utility(board)
         if 0 < depth and utility > 20:
             return utility
-        elif depth > 3 or actions.size==0:
+        elif depth > 3 or actions.size == 0:
             return utility
         v = float("inf")
         for a in actions:
@@ -207,7 +206,6 @@ class EvaluateAgent(ReversiAgent):
         valids = _ENV.get_valid((board, turn))
         valids = np.array(list(zip(*valids.nonzero())))
         return valids
-
 
 
 class RandomAgent(ReversiAgent):
@@ -297,6 +295,7 @@ class MyAgent(ReversiAgent):
         if node.action.size != 0:
             disc = np.array(list(zip(*node.board.nonzero())))
             total_mobility = node.action.size + self.get_valid_actions(node.board, -1 * node.player).size
+            # compute disc score
             disc_score = 0
             for d in disc:
                 if self.player == node.board[d[0]][d[1]]:
@@ -311,7 +310,8 @@ class MyAgent(ReversiAgent):
             # compute corner score
             corner_score = 0
             total_corner = 0
-            corner = [[0, 0], [0, 7], [7, 0], [7, 7]]
+            corner = [[0, 0], [0, len(node.board) - 1], [len(node.board) - 1, 0],
+                      [len(node.board) - 1, len(node.board) - 1]]
             for c in corner:
                 if node.board[c[0]][c[1]] == self.player:
                     corner_score += 50
@@ -324,6 +324,7 @@ class MyAgent(ReversiAgent):
             else:
                 corner_score = 0
             corner_score = corner_score / len(corner)
+            # compute stability score
             stability_score = 0
             total_stability = 0
             if node.action.size != 0:
@@ -351,8 +352,27 @@ class MyAgent(ReversiAgent):
             if total_stability != 0:
                 stability_score = stability_score / total_stability
             else:
-                stability_score =0
-            score = (0.5 * disc_score) + (0.1 * mobility_score) + (0.3 * corner_score) + (0.1 * stability_score)
+                stability_score = 0
+            # compute avoid move score
+            score_avoid_move = 0
+            total_avoid_move = 0
+            avoid_move = [[1, 1], [0, 1], [1, 0],
+                          [0, len(node.board) - 2], [1, len(node.board) - 2], [1, len(node.board) - 1],
+                          [len(node.board) - 2, 0], [len(node.board) - 2, 1], [len(node.board) - 1, 1],
+                          [len(node.board) - 2, len(node.board) - 1], [len(node.board) - 2, len(node.board) - 2],
+                          [len(node.board) - 1, len(node.board) - 2]]
+            for am in avoid_move:
+                if node.board[am[0]][am[1]] == self.player:
+                    score_avoid_move -= 5
+                    total_avoid_move += 1
+                else:
+                    score_avoid_move += 5
+                    total_avoid_move += 1
+            if total_avoid_move == 0:
+                score_avoid_move = score_avoid_move / total_avoid_move
+            else:
+                score_avoid_move = 0
+            score = (0.4 * disc_score) + (0.05 * mobility_score) + (0.3 * corner_score) + (0.05 * stability_score) + (0.2 * score_avoid_move)
             return score
         else:
             return 0
