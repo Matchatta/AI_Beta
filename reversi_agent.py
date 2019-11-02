@@ -15,8 +15,6 @@ import numpy as np
 import gym
 import boardgame2 as bg2
 
-
-
 _ENV = gym.make('Reversi-v0')
 _ENV.reset()
 
@@ -46,7 +44,7 @@ class ReversiAgent(abc.ABC):
         super().__init__()
         self._move = None
         self._color = color
-    
+
     @property
     def player(self):
         """Return the color of this agent."""
@@ -80,9 +78,9 @@ class ReversiAgent(abc.ABC):
         try:
             # await self.search(board, valid_actions)    
             p = Process(
-                target=self.search, 
+                target=self.search,
                 args=(
-                    self._color, board, valid_actions, 
+                    self._color, board, valid_actions,
                     output_move_row, output_move_column))
             p.start()
             while p.is_alive():
@@ -102,7 +100,7 @@ class ReversiAgent(abc.ABC):
 
     @abc.abstractmethod
     def search(
-            self, color, board, valid_actions, 
+            self, color, board, valid_actions,
             output_move_row, output_move_column):
         """
         Set the intended move to self._move.
@@ -131,9 +129,9 @@ class ReversiAgent(abc.ABC):
 
 class RandomAgent(ReversiAgent):
     """An agent that move randomly."""
-    
+
     def search(
-            self, color, board, valid_actions, 
+            self, color, board, valid_actions,
             output_move_row, output_move_column):
         """Set the intended move to the value of output_moves."""
         # If you want to "simulate a move", you can call the following function:
@@ -153,3 +151,137 @@ class RandomAgent(ReversiAgent):
             print(type(e).__name__, ':', e)
             print('search() Traceback (most recent call last): ')
             traceback.print_tb(e.__traceback__)
+
+
+class MyAgent(ReversiAgent):
+    class node:
+        def __init__(self, board, player, action=None, v=float("-inf")):
+            self.player = player
+            self.v = v
+            self.action = action
+            self.successor = None
+            self.board = board
+
+    def search(self, color, board, valid_actions, output_move_row, output_move_column):
+        try:
+            # while True:
+            #     pass
+            time.sleep(0.5)
+            new_node = self.node(board, self.player, action=valid_actions)
+            self.max_value(new_node)
+            # randidx = random.randint(0, len(valid_actions) - 1)
+            # random_action = valid_actions[randidx]
+            output_move_row.value = new_node.successor[0]
+            output_move_column.value = new_node.successor[1]
+        except Exception as e:
+            print(type(e).__name__, ':', e)
+            print('search() Traceback (most recent call last): ')
+            traceback.print_tb(e.__traceback__)
+
+    def max_value(self, node, depth=0, alpha=float("-inf"), beta=float("inf")):
+        if self.terminal_test(depth, node):
+            return self.utility(node)
+        v = float("-inf")
+        for a in node.action:
+            new_board, turn = self.successor_function(node, a)
+            new_node = self.node(new_board, turn, self.get_valid_actions(new_board, turn))
+            v = max(v, self.min_value(new_node, depth=depth + 1, alpha=alpha, beta=beta))
+            if depth == 0 and v != node.v:
+                node.v = v
+                node.successor = a
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def min_value(self, node, depth=0, alpha=float("-inf"), beta=float("inf")):
+        if self.terminal_test(depth, node):
+            return self.utility(node)
+        v = float("inf")
+        for a in node.action:
+            new_board, turn = self.successor_function(node, a)
+            new_node = self.node(new_board, turn, self.get_valid_actions(new_board, turn))
+            v = min(v, self.max_value(new_node, depth=depth + 1, alpha=alpha, beta=beta))
+            if depth == 0 and v != node.score:
+                node.v = v
+                node.successor = a
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+        return v
+
+    def utility(self, node):
+        if node.action.size != 0:
+            disc = np.array(list(zip(*node.board.nonzero())))
+            total_mobility = node.action.size + self.get_valid_actions(node.board, -1 * node.player).size
+            disc_score = 0
+            for d in disc:
+                if self.player == node.board[d[0]][d[1]]:
+                    disc_score += 1
+                else:
+                    disc_score -= 1
+            mobility_score = 0
+            if total_mobility != 0:
+                mobility_score = self.get_valid_actions(node.board, self.player).size / total_mobility
+            else:
+                mobility_score = 0
+            # compute corner score
+            corner_score = 0
+            total_corner = 0
+            corner = [[0, 0], [0, 7], [7, 0], [7, 7]]
+            for c in corner:
+                if node.board[c[0]][c[1]] == self.player:
+                    corner_score += 50
+                    total_corner += 1
+                elif node.board[c[0]][c[1]] == -1 * self.player:
+                    corner_score -= 50
+                    total_corner += 1
+            if total_corner != 0:
+                corner_score = corner_score / total_corner
+            else:
+                corner_score = 0
+            corner_score = corner_score / len(corner)
+            stability_score = 0
+            total_stability = 0
+            if node.action.size != 0:
+                sto_board = {}
+                i = 0
+                for a in node.action:
+                    new_board, __ = self.successor_function(node, a)
+                    sto_board[i] = new_board
+                    i += 1
+                for d in disc:
+                    flag = False
+                    for key in sto_board:
+                        b = sto_board[key]
+                        if node.board[d[0]][d[1]] == b[d[0]][d[1]]:
+                            flag = True
+                        else:
+                            flag = False
+                    if flag:
+                        if node.board[d[0]][d[1]] == self.player:
+                            stability_score += 1
+                            total_stability += 1
+                        else:
+                            stability_score -= 1
+                            total_stability += 1
+            if total_stability != 0:
+                stability_score = stability_score / total_stability
+            else:
+                stability_score =0
+            score = (0.5 * disc_score) + (0.1 * mobility_score) + (0.3 * corner_score) + (0.1 * stability_score)
+            return score
+        else:
+            return 0
+
+    def successor_function(self, node, action):
+        new_board, turn = _ENV.get_next_state((node.board, node.player), action)
+        return new_board, turn
+
+    def get_valid_actions(self, board, turn):
+        valids = _ENV.get_valid((board, turn))
+        valids = np.array(list(zip(*valids.nonzero())))
+        return valids
+
+    def terminal_test(self, depth, node):
+        return depth > 2 or self.get_valid_actions(node.board, node.player).size == 0
