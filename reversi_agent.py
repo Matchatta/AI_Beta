@@ -295,14 +295,16 @@ class MyAgent(ReversiAgent):
         else:
             return 0
 
-    def successor_function(self, node, action):
+    @staticmethod
+    def successor_function(node, action):
         new_board, turn = _ENV.get_next_state((node.board, node.player), action)
         return new_board, turn
 
-    def get_valid_actions(self, board, turn):
-        valids = _ENV.get_valid((board, turn))
-        valids = np.array(list(zip(*valids.nonzero())))
-        return valids
+    @staticmethod
+    def get_valid_actions(board, turn):
+        valid = _ENV.get_valid((board, turn))
+        valid = np.array(list(zip(*valid.nonzero())))
+        return valid
 
     def terminal_test(self, depth, node):
         return depth > 2 or self.get_valid_actions(node.board, node.player).size == 0
