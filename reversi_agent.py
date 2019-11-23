@@ -307,7 +307,7 @@ class KaiAgent(ReversiAgent):
         return valid
 
     def terminal_test(self, depth, node):
-        return depth > 2 or self.get_valid_actions(node.board, node.player).size == 0
+        return depth > 1 or self.get_valid_actions(node.board, node.player).size == 0
 
 class NokAgent(ReversiAgent):
     class node:
