@@ -1,10 +1,10 @@
 """
 This module contains agents that play reversi.
-
 Version 3.0
 """
 
 import abc
+import copy
 import random
 import asyncio
 import traceback
@@ -33,7 +33,7 @@ class ReversiAgent(abc.ABC):
     def __init__(self, color):
         """
         Create an agent.
-        
+
         Parameters
         -------------
         color : int
@@ -58,7 +58,7 @@ class ReversiAgent(abc.ABC):
     @property
     def best_move(self):
         """Return move after the thinking.
-        
+
         Returns
         ------------
         move : np.array
@@ -76,7 +76,7 @@ class ReversiAgent(abc.ABC):
         output_move_row = Value('d', -1)
         output_move_column = Value('d', 0)
         try:
-            # await self.search(board, valid_actions)    
+            # await self.search(board, valid_actions)
             p = Process(
                 target=self.search,
                 args=(
@@ -104,7 +104,7 @@ class ReversiAgent(abc.ABC):
             output_move_row, output_move_column):
         """
         Set the intended move to self._move.
-        
+
         The intended move is a np.array([r, c]) where r is the row index
         and c is the column index on the board. [r, c] must be one of the
         valid_actions, otherwise the game will skip your turn.
@@ -112,19 +112,20 @@ class ReversiAgent(abc.ABC):
         Parameters
         -------------------
         board : np.array
-            An 8x8 array that contains 
+            An 8x8 array that contains
         valid_actions : np.array
             An array of shape (n, 2) where n is the number of valid move.
 
         Returns
         -------------------
         None
-            This method should set value for 
-            `output_move_row.value` and `output_move_column.value` 
+            This method should set value for
+            `output_move_row.value` and `output_move_column.value`
             as a way to return.
 
         """
         raise NotImplementedError('You will have to implement this.')
+
 
 class RandomAgent(ReversiAgent):
     """An agent that move randomly."""
@@ -151,8 +152,7 @@ class RandomAgent(ReversiAgent):
             print('search() Traceback (most recent call last): ')
             traceback.print_tb(e.__traceback__)
 
-
-class MyAgent(ReversiAgent):
+class KaiAgent(ReversiAgent):
     class node:
         def __init__(self, board, player, action=None, v=float("-inf")):
             self.player = player
@@ -308,3 +308,341 @@ class MyAgent(ReversiAgent):
 
     def terminal_test(self, depth, node):
         return depth > 2 or self.get_valid_actions(node.board, node.player).size == 0
+
+class NokAgent(ReversiAgent):
+    class node:
+        def __init__(self, board, player, action=None, v=float("-inf")):
+            self.player = player
+            self.v = v
+            self.action = action
+            self.successor = None
+            self.board = board
+
+    def search(self, color, board, valid_actions, output_move_row, output_move_column):
+        try:
+            # while True:
+            #     pass
+            time.sleep(0.5)
+            new_node = self.node(board, self.player, action=valid_actions)
+            self.max_value(new_node)
+            # randidx = random.randint(0, len(valid_actions) - 1)
+            # random_action = valid_actions[randidx]
+            output_move_row.value = new_node.successor[0]
+            output_move_column.value = new_node.successor[1]
+        except Exception as e:
+            print(type(e).__name__, ':', e)
+            print('search() Traceback (most recent call last): ')
+            traceback.print_tb(e.__traceback__)
+
+    def max_value(self, node, depth=0, alpha=float("-inf"), beta=float("inf")):
+        if self.terminal_test(depth, node):
+            return self.utility(node)
+        v = float("-inf")
+        for a in node.action:
+            new_board, turn = self.successor_function(node, a)
+            new_node = self.node(new_board, turn, self.get_valid_actions(new_board, turn))
+            v = max(v, self.min_value(new_node, depth=depth + 1, alpha=alpha, beta=beta))
+            if depth == 0 and v != node.v:
+                node.v = v
+                node.successor = a
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def min_value(self, node, depth=0, alpha=float("-inf"), beta=float("inf")):
+        if self.terminal_test(depth, node):
+            return self.utility(node)
+        v = float("inf")
+        for a in node.action:
+            new_board, turn = self.successor_function(node, a)
+            new_node = self.node(new_board, turn, self.get_valid_actions(new_board, turn))
+            v = min(v, self.max_value(new_node, depth=depth + 1, alpha=alpha, beta=beta))
+            if depth == 0 and v != node.score:
+                node.v = v
+                node.successor = a
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+        return v
+
+    def utility(self, node):
+        if node.action.size != 0:
+            disc = np.array(list(zip(*node.board.nonzero())))
+            disc_score = 0
+            for d in disc:
+                if self.player == node.board[d[0]][d[1]]:
+                    disc_score += 1
+                else:
+                    disc_score -= 1
+            return disc_score
+        else:
+            return 0
+
+    @staticmethod
+    def successor_function(node, action):
+        new_board, turn = _ENV.get_next_state((node.board, node.player), action)
+        return new_board, turn
+
+    @staticmethod
+    def get_valid_actions(board, turn):
+        valid = _ENV.get_valid((board, turn))
+        valid = np.array(list(zip(*valid.nonzero())))
+        return valid
+
+    def terminal_test(self, depth, node):
+        return depth > 2 or self.get_valid_actions(node.board, node.player).size == 0
+
+class HongAgent(ReversiAgent):
+    def __init__(self, color):
+        super().__init__(color)
+        self.next_move = []
+        self.Score = float("-inf")
+
+    def search(self, color, board, valid_actions, output_move_row, output_move_column):
+        try:
+            time.sleep(0.5)
+            i=0
+            self.MaxValue(board, float("-inf"), float("inf"), valid_actions, color)
+            # randidx = random.randint(0, len(valid_actions) - 1)
+            # random_action = valid_actions[randidx]
+            output_move_row.value = self.next_move[0]
+            output_move_column.value = self.next_move[1]
+        except Exception as e:
+            print(self.next_move, self.Score)
+            print(type(e).__name__, ':', e)
+            print('search() Traceback (most recent call last): ')
+            traceback.print_tb(e.__traceback__)
+
+    def MaxValue(self, board, alpha, beta, actions, turn, depth=0):
+        Alpha = alpha
+        Beta = beta
+        utility = self.Utility(board)
+        if 0 < depth and utility > 20:
+            return utility
+        elif depth > 3:
+            return utility
+        v = float("-inf")
+        for a in actions:
+            new_board, new_turn = _ENV.get_next_state((board, turn), a)
+            new_actions = self.GetValidAction(new_board, new_turn)
+            min_result = self.MinValue(new_board, Alpha, Beta, new_actions, new_turn, depth+1)
+            v = max(v, min_result)
+            if depth == 0 and v != self.Score:
+                self.next_move = a
+                self.Score = v
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def MinValue(self, board, alpha, beta, actions, turn, depth=0):
+        Alpha = alpha
+        Beta = beta
+        utility = self.Utility(board)
+        if 0 < depth and utility > 20:
+            return utility
+        elif depth > 3:
+            return utility
+        v = float("inf")
+        for a in actions:
+            new_board, new_turn = _ENV.get_next_state((board, turn), a)
+            new_actions = self.GetValidAction(new_board, new_turn)
+            max_result = self.MaxValue(new_board, Alpha, Beta, new_actions, new_turn, depth+1)
+            v = min(v, max_result)
+            if depth == 0 and v != self.Score:
+                self.next_move = a
+                self.Score = v
+            if v >= beta:
+                return v
+            beta = min(beta, v)
+        return v
+
+    def Utility(self, board):
+        disc = np.array(list(zip(*board.nonzero())))
+        score =0
+        for d in disc:
+            if board[d[0]][d[1]] == self.player:
+                score += 1
+        score = score/disc.size
+        score *= 100
+        return score
+
+    def GetValidAction(self, board, turn):
+        valids = _ENV.get_valid((board, turn))
+        valids = np.array(list(zip(*valids.nonzero())))
+        return valids
+
+class PedAgent(ReversiAgent):
+
+    def __init__(self, color):
+        super().__init__(color)
+        self.next_move = []
+        self.Score = float("-inf")
+
+    def search(self, color, board, valid_actions, output_move_row, output_move_column):
+        try:
+            time.sleep(3)
+            self.Max_value(board, float("-inf"), float("inf"), valid_actions, color)
+            output_move_row.value = self.next_move[0]
+            output_move_column.value = self.next_move[1]
+
+
+        except Exception as e:
+            print(type(e).__name__, ':', e)
+            print('search() Traceback (most recent call last): ')
+            traceback.print_tb(e.__traceback__)
+
+    def evaluate(self, board):
+        Board = np.array(list(zip(*board.nonzero())))
+        countA: int = 0
+        countB: int = 0
+        for row in Board:
+            if board[row[0]][row[1]] == self._color:
+                countA += 1
+            else:
+                countB += 1
+        return countA - countB
+
+    def Max_value(self, board, alpha, beta, actions, player, depth=0):
+        Alpha = alpha
+        Beta = beta
+        score = self.evaluate(board)
+        if 0 < depth:
+            return score
+        elif depth > 3:
+            return score
+        v = float("-inf")
+        for x in actions:
+            newboard, playerturn = _ENV.get_next_state((board, player), x)
+            newactions = self.BestAction(newboard, playerturn)
+            minresult = self.Min_value(newboard, Alpha, Beta, newactions, playerturn, depth+1)
+            v = max(v, minresult)
+            if depth == 0 and v != self.Score:
+                self.next_move = x
+                self.Score = v
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def Min_value(self, board, alpha, beta, actions, player, depth=0):
+        Alpha = alpha
+        Beta = beta
+        score = self.evaluate(board)
+        if 0 < depth:
+            return score
+        elif depth > 3:
+            return score
+        v = float("inf")
+        for x in actions:
+            newboard, playerturn = _ENV.get_next_state((board, player), x)
+            newactions = self.BestAction(newboard, playerturn)
+            maxresult = self.Max_value(newboard, Alpha, Beta, newactions, playerturn, depth+1)
+            v = min(v, maxresult)
+            if depth == 0 and v != self.Score:
+                self.next_move = x
+                self.Score = v
+            if v >= beta:
+                return v
+            beta = min(beta, v)
+        return v
+
+    @staticmethod
+    def getOpponent(player: int):
+        if player == 1:
+            return -1
+        else:
+            return 1
+
+    def BestAction(self, board, player: int) -> (np.array, np.array):
+        valid:  np.array =_ENV.get_valid((board,self.getOpponent(player)))
+        valid: np.array = np.array(list(zip(*valid.nonzero())))
+        return valid
+
+class HanAgent(ReversiAgent):
+
+    def __init__(self, color):
+        super().__init__(color)
+        self.next_move = []
+        self.Score = float("-inf")
+
+    def search(self, color, board, valid_actions, output_move_row, output_move_column):
+        try:
+            time.sleep(3)
+            self.Max_value(board, float("-inf"), float("inf"), valid_actions, color)
+            output_move_row.value = self.next_move[0]
+            output_move_column.value = self.next_move[1]
+
+
+        except Exception as e:
+            print(type(e).__name__, ':', e)
+            print('search() Traceback (most recent call last): ')
+            traceback.print_tb(e.__traceback__)
+
+    def evaluate(self, board):
+        Board = np.array(list(zip(*board.nonzero())))
+        countA: int = 0
+        countB: int = 0
+        for row in Board:
+            if board[row[0]][row[1]] == self._color:
+                countA += 1
+            else:
+                countB += 1
+        return countA - countB
+
+    def Max_value(self, board, alpha, beta, actions, player, depth=0):
+        Alpha = alpha
+        Beta = beta
+        score = self.evaluate(board)
+        if 0 < depth:
+            return score
+        elif depth > 3:
+            return score
+        v = float("-inf")
+        for x in actions:
+            newboard, playerturn = _ENV.get_next_state((board, player), x)
+            newactions = self.BestAction(newboard, playerturn)
+            minresult = self.Min_value(newboard, Alpha, Beta, newactions, playerturn, depth+1)
+            v = max(v, minresult)
+            if depth == 0 and v != self.Score:
+                self.next_move = x
+                self.Score = v
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def Min_value(self, board, alpha, beta, actions, player, depth=0):
+        Alpha = alpha
+        Beta = beta
+        score = self.evaluate(board)
+        if 0 < depth:
+            return score
+        elif depth > 3:
+            return score
+        v = float("inf")
+        for x in actions:
+            newboard, playerturn = _ENV.get_next_state((board, player), x)
+            newactions = self.BestAction(newboard, playerturn)
+            maxresult = self.Max_value(newboard, Alpha, Beta, newactions, playerturn, depth+1)
+            v = min(v, maxresult)
+            if depth == 0 and v != self.Score:
+                self.next_move = x
+                self.Score = v
+            if v >= beta:
+                return v
+            beta = min(beta, v)
+        return v
+
+    @staticmethod
+    def getOpponent(player: int):
+        if player == 1:
+            return -1
+        else:
+            return 1
+
+    def BestAction(self, board, player: int) -> (np.array, np.array):
+        valid:  np.array =_ENV.get_valid((board,self.getOpponent(player)))
+        valid: np.array = np.array(list(zip(*valid.nonzero())))
+        return valid
