@@ -4,8 +4,6 @@ Version 3.0
 """
 
 import abc
-import copy
-import random
 import asyncio
 import traceback
 import time
@@ -125,32 +123,6 @@ class ReversiAgent(abc.ABC):
 
         """
         raise NotImplementedError('You will have to implement this.')
-
-
-class RandomAgent(ReversiAgent):
-    """An agent that move randomly."""
-
-    def search(
-            self, color, board, valid_actions,
-            output_move_row, output_move_column):
-        """Set the intended move to the value of output_moves."""
-        # If you want to "simulate a move", you can call the following function:
-        # transition(board, self.player, valid_actions[0])
-
-        # To prevent your agent to fail silently we should an
-        # explicit trackback printout.
-        try:
-            # while True:
-            #     pass
-            time.sleep(3)
-            randidx = random.randint(0, len(valid_actions) - 1)
-            random_action = valid_actions[randidx]
-            output_move_row.value = random_action[0]
-            output_move_column.value = random_action[1]
-        except Exception as e:
-            print(type(e).__name__, ':', e)
-            print('search() Traceback (most recent call last): ')
-            traceback.print_tb(e.__traceback__)
 
 class KaiAgent(ReversiAgent):
     class node:
